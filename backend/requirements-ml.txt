@@ -1,0 +1,4 @@
+# Optional: real local semantic embeddings (ONNX, no PyTorch, no API key).
+# Set EMBEDDER=fastembed. The model (~130MB) downloads once on first use.
+-r requirements.txt
+fastembed>=0.3,<1

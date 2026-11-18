@@ -1,0 +1,4 @@
+-r requirements-llm.txt
+pytest>=8,<9
+# Embedded PostgreSQL (with pgvector) so tests run without Docker.
+pgserver>=0.1.4

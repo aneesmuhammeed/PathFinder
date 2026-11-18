@@ -1,0 +1,4 @@
+# LLM provider SDKs. Install the one(s) you use; with no key the built-in mock LLM runs instead.
+-r requirements.txt
+anthropic>=1.0   # default provider (Claude)
+openai>=1.50     # OpenAI, and Gemini via its OpenAI-compatible endpoint

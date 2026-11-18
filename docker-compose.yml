@@ -1,0 +1,66 @@
+# docker compose up --build      → chat UI on http://localhost:8080, API on http://localhost:8000
+# Put ANTHROPIC_API_KEY (etc.) in a .env file next to this one for a real model; without it the demo assistant runs.
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: pathfinder
+      POSTGRES_PASSWORD: pathfinder
+      POSTGRES_DB: pathfinder
+    ports:
+      - "127.0.0.1:5432:5432"   # localhost only: this password is for development
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pathfinder -d pathfinder"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://pathfinder:pathfinder@db:5432/pathfinder
+      LOG_JSON: "true"
+      TRUST_PROXY_HEADERS: "true"   # behind the nginx in `web`, so per-IP rate limits see real clients
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  # The chat UI: nginx serves the build and proxies /api/ to the api service (no CORS needed).
+  web:
+    build:
+      context: ./frontend
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+
+  # Optional: keep the index fresh from the live job boards every 6 hours.
+  #   docker compose --profile live up -d
+  worker:
+    profiles: ["live"]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://pathfinder:pathfinder@db:5432/pathfinder
+    command: ["python", "-m", "app.cli", "loop", "--source", "all", "--interval-minutes", "360"]
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
